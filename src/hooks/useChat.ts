@@ -12,6 +12,11 @@ export interface Message {
   content: string
   sender: 'doctor' | 'patient' | 'system'
   timestamp: Date
+  type?: 'text' | 'test_results' | 'report'
+  data?: {
+    results?: Array<{ result: string; description: string }>
+    report?: string
+  }
 }
 
 interface ChatState {
@@ -54,9 +59,11 @@ export function useChat() {
       // Add patient response
       const patientMessage: Message = {
         id: crypto.randomUUID(),
-        content: patientResponse,
+        content: patientResponse.content,
         sender: 'patient',
         timestamp: new Date(),
+        type: patientResponse.type,
+        data: patientResponse.data,
       }
 
       setState(prev => ({

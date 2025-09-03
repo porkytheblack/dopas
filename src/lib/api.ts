@@ -5,7 +5,16 @@ function generateSessionId(): string {
   return `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
 }
 
-export async function sendMessage(message: string, sessionId?: string): Promise<string> {
+export interface MessageResponse {
+  type: 'text' | 'test_results' | 'report'
+  content: string
+  data?: {
+    results?: Array<{ result: string; description: string }>
+    report?: string
+  }
+}
+
+export async function sendMessage(message: string, sessionId?: string): Promise<MessageResponse> {
   try {
     const currentSessionId = sessionId || generateSessionId()
     dopasv1.setSessionId(currentSessionId)
@@ -16,9 +25,30 @@ export async function sendMessage(message: string, sessionId?: string): Promise<
     const response_data = stringified_content ? JSON.parse(stringified_content || '{}') : {
       answer: response.data?.answer
     }
+
+    // Determine response type and format accordingly
+    if (response_data?.results) {
+      return {
+        type: 'test_results',
+        content: 'Test Results Available',
+        data: { results: response_data.results }
+      }
+    }
+
+    if (response_data?.report) {
+      return {
+        type: 'report',
+        content: 'Medical Report',
+        data: { report: response_data.report }
+      }
+    }
+
+    // Default text response
     const responseText = response_data?.answer ?? response_data?.question ?? "Failed to load response..., try again"
-    
-    return responseText
+    return {
+      type: 'text',
+      content: responseText
+    }
 
   } catch (error) {
     console.error('Failed to send message:', error)
@@ -36,7 +66,7 @@ export async function sendMessage(message: string, sessionId?: string): Promise<
 }
 
 // Retry wrapper for network resilience
-export async function sendMessageWithRetry(message: string, retries = 2): Promise<string> {
+export async function sendMessageWithRetry(message: string, retries = 2): Promise<MessageResponse> {
   for (let i = 0; i <= retries; i++) {
     try {
       return await sendMessage(message)
